@@ -1,9 +1,11 @@
 
-func unzipforbuffer(zipfile []byte, savefolder string){
+
+func unzipforbuffer(zipfile []byte, savefolder string) error {
 	zipbuf := bytes.NewReader(zipfile) // make io.reader
 	archive, err := zip.NewReader(zipbuf,zipbuf.Size()) // io.reader to zip.reader
 	if err != nil {
 		log.Println("newreader", err)
+		return errors.Errorf("Zip NewReader error Detail :",err)
 	} else {
 		archive.RegisterDecompressor(zip.Deflate, func(r io.Reader) io.ReadCloser { // register zip decompress (if you used compressor for make "zip")
 			return flate.NewReader(r)
@@ -18,7 +20,8 @@ func unzipforbuffer(zipfile []byte, savefolder string){
 			switch {
 			case info.IsDir() || checkbackslash : // i've refer to the "github.com\codeclysm\extract"
 				if err := os.MkdirAll(location, info.Mode()|os.ModeDir|100); err != nil {
-					log.Println("Mkdir Error")
+					log.Println("Mkdir error")
+					return errors.Errorf("MKdir error Detail :",err)
 				} else {
 					log.Println("folder create", location)
 				}
@@ -26,13 +29,16 @@ func unzipforbuffer(zipfile []byte, savefolder string){
 				f, err := ifile.Open()
 				if err != nil {
 					log.Println("sym err", err)
+					return errors.Errorf("Symlink open error to zip. Detail :",err)
 				} else {
 					name, err := ioutil.ReadAll(f)
 					if err != nil {
 						log.Println("sym read", name)
+						return errors.Errorf("Symlink file read error Detail :",err)
 					} else {
 						if err = os.Symlink(location, string(name)); err != nil {
 							log.Println("create sym", err)
+							return errors.Errorf("Symlink create error Detail :",err)
 						} else {
 							log.Println("symlink create", location)
 						}
@@ -42,16 +48,19 @@ func unzipforbuffer(zipfile []byte, savefolder string){
 				f, err := ifile.Open() // get io.readcloser for zip inside files
 				if err != nil {
 					log.Println("openfile", err)
+					return errors.Errorf("zip inside file open error Detail :",err)
 				} else {
 					filebufs, err := ioutil.ReadAll(f) // io.readcloser to bytearray
 					if err != nil {
 						log.Println("fileread", err)
+						return errors.Errorf("file read error Detail :",err)
 					} else {
 						dirpath, _ := path.Split(location) // get directory path (check if dir only)
 						_, err:= os.Stat(dirpath)
 						if os.IsNotExist(err) { // if folder is not exist. make folder
 							err = os.MkdirAll(dirpath, info.Mode()|os.ModeDir|100)
 							if err != nil {
+								return errors.Errorf("makedir error Detail :",err)
 								log.Println("mkdir all", err)
 							} else {
 								log.Println("folder create", dirpath)
@@ -60,25 +69,27 @@ func unzipforbuffer(zipfile []byte, savefolder string){
 						err = ioutil.WriteFile(location, filebufs, ifile.Mode()) // save file
 						if err != nil {
 							log.Println("file create ", err)
+							return errors.Errorf("file create error Detail :",err)
 						} else {
 							err = os.Chtimes(location, modifytime, modifytime) // edit for save file to file access time // modify time
 							if err != nil {
 								log.Println("file modifytime ", err)
+								return errors.Errorf("file edit modify time error Detail :",err)
 							} else {
 								log.Println("file create", location)
 							}
 						}
 					}
 				}
-
 			}
 			if pathz == "" {
 				continue
 			}
-
 		}
 	}
+	return nil
 }
+
 
 func Archive(inFilePath []string, writer io.Writer, progress ProgressFunc) error {// i've refer to the "github.com/pierrre/archivefile"
 	zipWriter := zip.NewWriter(writer)
